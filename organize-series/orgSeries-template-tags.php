@@ -174,21 +174,16 @@ function wp_postlist_display()
     $settings = $orgseries->settings;
     $serarray = get_the_series();
     $postlist = '';
-
+ 
     if (empty($serarray)) {
         return false;
     }
-
-    $post_list_box_id = isset($settings['series_post_list_box_selection']) ? $settings['series_post_list_box_selection'] : '';
-    
-    if (empty($post_list_box_id)) {
-        $post_list_box_id = PPS_Post_List_Box_Utilities::get_default_post_list_box_id();
-    }
-    
-    if (!empty($post_list_box_id)) {
+ 
+    // Check if a custom post list box is selected
+    if (!empty($settings['series_post_list_box_selection'])) {
         $post_list_box_id = $settings['series_post_list_box_selection'];
         $post_list_box    = get_post($post_list_box_id);
-
+ 
         if ($post_list_box && $post_list_box->post_status === 'publish' && class_exists('PPS_Post_List_Box_Fields') && class_exists('PPS_Post_List_Box_Preview')) {
             foreach ($serarray as $series) {
                 $series_id = $series->term_id;
@@ -205,7 +200,7 @@ function wp_postlist_display()
                     'posts_per_page' => -1,
                 ];
                 $posts_in_series = get_posts($args);
-
+ 
                 // Ensure the current post is in the list if it belongs to the series.
                 $current_post_id = get_the_ID();
                 $post_ids_in_series = wp_list_pluck($posts_in_series, 'ID');
@@ -219,16 +214,16 @@ function wp_postlist_display()
                 $layout_slug = 'pps_post_list_box_' . $post_list_box_id;
                 $postlist .= do_shortcode('[pps_post_list_box layout="' . $layout_slug . '" series="' . $series->slug . '" posts_per_page="-1"]');
             }
-
+ 
             // Ensure postcontent token is available for replacement
             if (strpos($postlist, '%postcontent%') === false) {
                 $postlist .= '%postcontent%';
             }
-
+ 
             return $postlist;
         }
     }
-
+ 
     // Fallback to the default template for all series
     foreach ($serarray as $series) {
         $serID = $series->term_id;
@@ -236,12 +231,12 @@ function wp_postlist_display()
         $template = str_replace('</ul>', '</ul><div class="clear"></div>', $template);
         $postlist .= token_replace(stripslashes($template . '<div class="clear-me"></div>'), 'post-list', 0, $serID);
     }
-
+ 
     // Cleanup postcontent for multiple series
     $postlist_parts = explode('%postcontent%', $postlist);
     $postlist = implode('', $postlist_parts);
     $postlist .= '%postcontent%';
-
+ 
     return $postlist;
 }
 
@@ -377,6 +372,16 @@ function wp_seriesmeta_write($excerpt = FALSE)
 {
 	global $post, $orgseries;
 	$settings = $orgseries->settings;
+
+	$selected_layout_id = 0;
+	if (
+		class_exists('SeriesPostDetailsRenderer')
+		&& class_exists('PPS_Series_Post_Details_Utilities')
+		&& isset($settings['series_post_details_selection'])
+	) {
+		$selected_layout_id = (int) $settings['series_post_details_selection'];
+	}
+	
 	$serarray = get_the_series();
 	$series_meta = '';
 	$count = is_array($serarray) ? count($serarray) : 0;
@@ -385,10 +390,25 @@ function wp_seriesmeta_write($excerpt = FALSE)
 	if (!empty($serarray)) {
 		foreach ($serarray as $series) {
 			$serID = $series->term_id;
-			if ($excerpt) {
-				$series_meta .= token_replace(stripslashes($settings['series_meta_excerpt_template']), 'other', $post->ID, $serID);
+
+			$rendered = '';
+			if ($selected_layout_id > 0 && class_exists('SeriesPostDetailsRenderer')) {
+				$context = [
+					'series_term' => $series,
+					'post'        => $post,
+					'context'     => $excerpt ? 'auto_excerpt' : 'auto',
+				];
+				$rendered = SeriesPostDetailsRenderer::render_layout_for_series($selected_layout_id, $context, (bool) $excerpt);
+			}
+
+			if (! empty($rendered)) {
+				$series_meta .= $rendered;
 			} else {
-				$series_meta .= token_replace(stripslashes($settings['series_meta_template']), 'other', 0, $serID);
+				if ($excerpt) {
+					$series_meta .= token_replace(stripslashes($settings['series_meta_excerpt_template']), 'other', $post->ID, $serID);
+				} else {
+					$series_meta .= token_replace(stripslashes($settings['series_meta_template']), 'other', 0, $serID);
+				}
 			}
 
 			if ($i != $count || $trigger) {
@@ -700,24 +720,71 @@ function wp_assemble_series_nav()
 	$i = 1;
 	$trigger = false;
 	if (!empty($series)) {
-		foreach ($series as $ser) {
-			$series_id = $ser->term_id;
-			$series_count = $ser->count;
-			if ($series_count > 1) {
-				$nav .= token_replace(stripslashes($settings['series_post_nav_template']), 'other', 0, $series_id);
-				if ($i != $count || $trigger) {
-					$pos = strpos($nav, '%postcontent%');
-					if ($pos == 0)
-						$trigger = true; //%postcontent% is at the top in the template so we need to erase all %postcontent% to fix.
-					$nav = str_replace('%postcontent%', '', $nav);
-				}
+		// Check if Post Navigation editor layout is selected
+		$nav_layout_id = isset($settings['series_post_navigation_selection']) ? (int)$settings['series_post_navigation_selection'] : 0;
 
-				$i++;
+		if ($nav_layout_id > 0 && class_exists('PostNavigationRenderer')) {
+			$nav_post = get_post($nav_layout_id);
+			if ($nav_post && $nav_post->post_status === 'publish') {
+				$current_post_id = get_the_ID();
+				$current_post = get_post($current_post_id);
+				foreach ($series as $ser) {
+					$series_id = $ser->term_id;
+					$series_count = $ser->count;
+					if ($series_count > 1) {
+						$context = [
+							'series_term' => $ser,
+							'post'        => $current_post,
+							'context'     => 'auto',
+						];
+						$rendered = PostNavigationRenderer::render_layout_for_series($nav_layout_id, $context);
+						if ($rendered) {
+							$nav .= $rendered;
+						}
+					}
+				}
+				if (!empty($nav)) {
+					if (strpos($nav, '%postcontent%') === false) {
+						$nav = '%postcontent%' . $nav;
+					}
+					return $nav;
+				}
 			}
 		}
-		if ($trigger)
-			$nav = '%postcontent%' . $nav;
-		return $nav;
+
+		// Fallback to template replacement if no editor layout is selected
+		$i = 1;
+		$trigger = false;
+		if (!empty($series)) {
+			if ($nav_layout_id === 0) {
+				// Use custom template
+				$nav_template = isset($settings['series_post_nav_template']) ? $settings['series_post_nav_template'] : '';
+			} else {
+				// Editor layout exists but PostNavigationRenderer class doesn't
+				$nav_template = isset($settings['series_post_nav_template']) ? $settings['series_post_nav_template'] : '';
+			}
+
+			if (!empty($nav_template)) {
+				foreach ($series as $ser) {
+					$series_id = $ser->term_id;
+					$series_count = $ser->count;
+					if ($series_count > 1) {
+						$nav .= token_replace(stripslashes($nav_template), 'other', 0, $series_id);
+						if ($i != $count || $trigger) {
+							$pos = strpos($nav, '%postcontent%');
+							if ($pos == 0)
+								$trigger = true; //%postcontent% is at the top in the template so we need to erase all %postcontent% to fix.
+							$nav = str_replace('%postcontent%', '', $nav);
+						}
+
+						$i++;
+					}
+				}
+				if ($trigger)
+					$nav = '%postcontent%' . $nav;
+				return $nav;
+			}
+		}
 	}
 
 	return FALSE;

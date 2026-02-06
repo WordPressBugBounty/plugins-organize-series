@@ -67,6 +67,9 @@ class PPS_Post_List_Box
 
         // Create default Post List Boxes if they don't exist
         add_action('init', [$this, 'create_default_post_list_boxes'], 10);
+        
+        // Set default post list box selection in settings
+        add_filter('org_series_settings', [$this, 'set_default_post_list_box_selection']);
     }
 
     /**
@@ -171,6 +174,23 @@ class PPS_Post_List_Box
     }
 
     /**
+     * Set default post list box selection in settings
+     *
+     * @param array $settings Current settings
+     * @return array Modified settings
+     */
+    public function set_default_post_list_box_selection($settings)
+    {
+        // Only set default if not already set
+        if (!isset($settings['series_post_list_box_selection'])) {
+            $default_box_id = PPS_Post_List_Box_Utilities::get_default_post_list_box_id();
+            $settings['series_post_list_box_selection'] = $default_box_id ?: '';
+        }
+        
+        return $settings;
+    }
+
+    /**
      * Save Post List box data
      *
      * @param integer $post_id post id
@@ -228,6 +248,9 @@ class PPS_Post_List_Box
 
         // Add code editor
         wp_enqueue_code_editor(['type' => 'text/css']);
+
+        // Enqueue media library for media picker
+        wp_enqueue_media();
 
         wp_enqueue_script(
             'post-list-box-editor-js',

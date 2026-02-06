@@ -81,7 +81,6 @@
     padding: 0;
     font-size: 18px;
     line-height: 1.4;
-    font-weight: 600;
 }
 
 .pps-post-title a {
@@ -166,10 +165,8 @@
 
 .pps-post-item.current-post .pps-post-title a {
     color: inherit;
-    font-weight: 700;
 }
 
 .pps-post-item.current-post .pps-post-meta {
     color: inherit;
-    opacity: 0.8;
 }
