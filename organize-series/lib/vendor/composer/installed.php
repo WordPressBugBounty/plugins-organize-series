@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => '__root__',
-        'pretty_version' => 'v3.1.4',
-        'version' => '3.1.4.0',
-        'reference' => '338cd87281278b72d2a8371289665192a270dcb8',
+        'pretty_version' => 'v3.1.5',
+        'version' => '3.1.5.0',
+        'reference' => '77d94f8b2b52e62758eef4c1d79fe4db755ee946',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         '__root__' => array(
-            'pretty_version' => 'v3.1.4',
-            'version' => '3.1.4.0',
-            'reference' => '338cd87281278b72d2a8371289665192a270dcb8',
+            'pretty_version' => 'v3.1.5',
+            'version' => '3.1.5.0',
+            'reference' => '77d94f8b2b52e62758eef4c1d79fe4db755ee946',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -38,9 +38,9 @@
             'dev_requirement' => false,
         ),
         'publishpress/pimple-pimple' => array(
-            'pretty_version' => '3.5.0.10',
-            'version' => '3.5.0.10',
-            'reference' => 'f2784f4b1ccaf195b373a46a74cf3742e7c9f826',
+            'pretty_version' => '3.5.0.11',
+            'version' => '3.5.0.11',
+            'reference' => 'c5246f8b0b1aaa59088b058d7bee1434ad6dd25c',
             'type' => 'library',
             'install_path' => __DIR__ . '/../publishpress/pimple-pimple',
             'aliases' => array(),
